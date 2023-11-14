@@ -1,0 +1,9 @@
+{
+	"name": "azpro-df",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "37875928-a3de-4b55-b27c-906659122eb9",
+		"tenantId": "cc4a35f6-222f-4fa7-8f2b-f5cd66403bd5"
+	}
+}

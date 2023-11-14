@@ -1,0 +1,216 @@
+{
+	"name": "cust_acquisition_pl",
+	"properties": {
+		"activities": [
+			{
+				"name": "get_last_prc_date",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT [process_date_hour] \nFROM [stage].[current_watermark]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "sql_table_ds",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "set_file_path",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "get_last_prc_date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "file_path",
+					"value": {
+						"value": "@concat(substring(activity('GET_LAST_PRC_DATE').output.firstRow.process_date_hour, 0, 10),'.json')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "copy_batch_file",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "set_file_path",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFileName": {
+								"value": "@variables('file_path')",
+								"type": "Expression"
+							},
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"sink": {
+						"type": "SqlServerSink",
+						"preCopyScript": "TRUNCATE TABLE [stage].[customer_acquistion_data]",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"path": "$['relationship_manager_id']"
+								},
+								"sink": {
+									"name": "relationship_manager_id",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['branch_id']"
+								},
+								"sink": {
+									"name": "branch_id",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['date']"
+								},
+								"sink": {
+									"name": "date",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"path": "$['customer_count']"
+								},
+								"sink": {
+									"name": "customer_count",
+									"type": "String"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Json_ds",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "sql_table_ds",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "upsert_cust_acq_data",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "copy_batch_file",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[stage].[upsert_customer_acquistion_data]"
+				},
+				"linkedServiceName": {
+					"referenceName": "AZ_SQL_DATABASE_LS",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "increment_watermark",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "upsert_cust_acq_data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[stage].[increment_watermark]"
+				},
+				"linkedServiceName": {
+					"referenceName": "AZ_SQL_DATABASE_LS",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"variables": {
+			"file_path": {
+				"type": "String",
+				"defaultValue": "2021-01-01.json"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2023-11-12T08:22:16Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

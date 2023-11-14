@@ -1,0 +1,19 @@
+{
+	"name": "Json_ds",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "az_datalake_ls",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileSystem": "logs"
+			}
+		},
+		"schema": {}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
